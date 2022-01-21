@@ -5,8 +5,6 @@ open Mode_theory
 
 exception Nbe_failed of string
 
-(* clos_cell /clos_mod are doing nothing but appending a cell resp. a modality to the environment of
-   a closure.Thereby basically marking the entire environment to be shifted at a later point.  *)
 let rec clos_mod (D.Clos {term; env}) mu = D.Clos {term = term; env = D.M mu :: env}
 
 and gen_do_clos (D.Clos {term; env}) a = eval term (a :: env)
@@ -18,7 +16,6 @@ and do_clos2 clos a1 a2 = gen_do_clos2 clos (Val a1) (Val a2)
 and gen_do_clos3 (D.Clos3 {term; env}) a1 a2 a3 = eval term (a3 :: a2 :: a1 :: env)
 and do_clos3 clos a1 a2 a3 = gen_do_clos3 clos (Val a1) (Val a2) (Val a3)
 
-(* match the expressions after we "pushed" the potential outermost shift one step inside *)
 and do_rec tp zero suc n =
   match n with
   | D.Zero -> zero

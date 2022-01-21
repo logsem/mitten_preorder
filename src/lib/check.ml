@@ -274,8 +274,6 @@ and synth ~env ~size ~term ~m =
     begin
       let cod_mu = m in
       let dom_mu = dom_mod mu m in
-      (* let cod_nu = dom_mu in *)
-      (* let dom_nu = dom_mod nu cod_nu in *)
       check_mode cod_mu m;
       let new_env = M mu :: env in
       let new_mode = dom_mu in
