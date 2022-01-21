@@ -1,21 +1,26 @@
-### This is the version that only permits pre-order mode theories ###
-A pre-order mode theory is a mode theory, that has at most one 2-cell between any pair of 1-cells.
+## posetal-mitten
 
-## mitten
 An implementation of MTT with modal dependent products (pi), modal types, dependent sums (sigma),
 natural numbers, and a cumulative hierarchy. This implementation correctly handles eta for both pi
 and sigma.
+
+This implementation only permits pre-order mode theories so that there is at most one 2-cell between
+any pair of modalities.
 
 This implementation has also been extended to include a type checker based on Coquand's semantic
 type checker. In order to interact with the normalizer, therefore, one can write a file containing a
 list of definitions and commands to normalize various terms.
 
-## Prerequisites 
-Tested under ocaml 4.07.1 and dune 2.8.5. Sexplib, menhir, ppx_compare and cmdliner libraries need to be installed.
+## Prerequisites
+
+Tested under ocaml 4.07.1 and dune 2.8.5. Sexplib, menhir, ppx_compare and cmdliner libraries need
+to be installed.
 
 ## How to use it
-Building mitten with "make build" or "dune build". Execute mitten with "dune exec mitten PATH/TO/FILE" or "_build/install/default/bin/mitten PATH/TO/FILE". 
-If there is no output, everything type checked. The commands "normalize" and "normalize def" print the normalized term to std_out.
+
+Building mitten with `make build` or `dune build`. Execute mitten with `dune exec mitten
+PATH/TO/FILE`. If there is no output, everything type checked. The commands `normalize` and
+`normalize def` print the normalized term.
 
 ## For example:
 
