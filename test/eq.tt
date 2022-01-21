@@ -1,0 +1,24 @@
+;; Runs with the minimal mode theory
+
+let test : Id Nat 0 0 @ s = refl 0
+
+let subst :
+    (A : {idm | (x : {idm | Nat}) -> U<0>})
+    -> (n : {idm | Nat}) -> (m : {idm | Nat})
+    -> (e : {idm | Id Nat n m})
+    -> (p : {idm | A n})
+    -> A m @ s =
+    fun A n m eq ->
+    match eq at x y q -> (p : {idm | A x}) -> (A y) with
+    | refl _ -> fun x -> x
+
+let uhoh : (A : {idm | U<0>}) -> (p : {idm | Nat}) -> U<0> @ s =
+    fun A n ->
+    rec n at _ -> U<0> with
+    | zero -> Id Nat 0 0
+    | suc _, _ -> A
+
+let absurd : (A : {idm | U<0>}) -> (p : {idm | Id Nat 0 1}) -> A @ s =
+    fun A eq -> subst (uhoh A) 0 1 eq (refl 0)
+
+normalize def absurd

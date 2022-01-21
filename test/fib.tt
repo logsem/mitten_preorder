@@ -1,0 +1,20 @@
+; Not really a particularly interesting program, but good for computing stuff.
+
+let plus : (x : {idm | Nat}) -> (y : {idm | Nat}) -> Nat @ s =
+    fun m ->
+    fun n ->
+    rec n at x -> Nat with
+    | zero -> m
+    | suc _, p -> suc p
+
+normalize plus {idm, 2} {idm, 2} at Nat @ s
+
+let fib : (x : {idm | Nat}) -> Nat @ s =
+    fun n ->
+    let worker : Nat * Nat =
+      rec n at _ -> Nat * Nat with
+      | zero -> pair (1, 0)
+      | suc _, p -> pair (plus {idm, (fst p)} {idm, (snd p)}, fst p) in
+    snd worker
+
+normalize fib {idm, 25} at Nat @ s

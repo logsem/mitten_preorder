@@ -1,0 +1,18 @@
+opam-version: "2.0"
+name: "mitten"
+version: "0.0"
+maintainer: "stassen@cs.au.dk"
+authors: ["Philipp Stassen" "Daniel Gratzer"]
+homepage: "https://github.com/logsem/mitten"
+bug-reports: "https://github.com/logsem/mitten/issues"
+dev-repo: "git+https://github.com/logsem/mitten.git"
+license: "MIT"
+depends: [
+  "dune"  {build}
+  "cmdliner" {= "1.0.2"}
+  "sexplib" {>= "0.11.0"}
+  "ppx_compare" {>= "0.14"}
+]
+build: [
+  [make]
+]

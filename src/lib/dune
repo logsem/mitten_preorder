@@ -1,0 +1,12 @@
+(menhir
+ (flags --explain --interpret-show-cst --table)
+ (modules grammar))
+
+(ocamllex lex)
+
+(library
+ (name Normalizer)
+ (libraries sexplib menhirLib)
+ (flags (:standard -w -9-32-37))
+ (modules_without_implementation abstract_mode_theory)
+ (public_name normalize_lib))

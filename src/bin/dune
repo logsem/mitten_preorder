@@ -1,0 +1,8 @@
+(executables
+ (names main)
+ (libraries normalize_lib cmdliner))
+
+(install
+ (section bin)
+ (package mitten)
+ (files (main.exe as mitten)))
