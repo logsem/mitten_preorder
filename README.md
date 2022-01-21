@@ -14,8 +14,8 @@ list of definitions and commands to normalize various terms.
 Tested under ocaml 4.07.1 and dune 2.8.5. Sexplib, menhir, ppx_compare and cmdliner libraries need to be installed.
 
 ## How to use it
-Building mitten with ``make build'' or ``dune build''. Execute mitten with ``dune exec mitten PATH/TO/FILE'' or ``_build/install/default/bin/mitten PATH/TO/FILE''. 
-If there is no output, everything type checked. The commands ``normalize'' and ``normalize def'' print the normalized term to std_out.
+Building mitten with "make build" or "dune build". Execute mitten with "dune exec mitten PATH/TO/FILE" or "_build/install/default/bin/mitten PATH/TO/FILE". 
+If there is no output, everything type checked. The commands "normalize" and "normalize def" print the normalized term to std_out.
 
 ## For example:
 
