@@ -14,6 +14,3 @@ clean:
 
 doc:
 	@${DUNE} build @doc
-
-install:
-	${OPAM} reinstall mltt
