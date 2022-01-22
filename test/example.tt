@@ -1,0 +1,9 @@
+;; ------------------- Modal elimination tests ----------------------
+let triv : (A : U<0>) -> (x : A) -> <<idm | A>> @ S =
+    fun A -> fun x -> mod idm x
+
+;; -------------- The next function for the later modality, next1 is defined over the universe -----------
+let next : (A : U<0>) -> A -> << l | A >> @ T =
+    fun A -> fun x -> mod l x
+
+normalize next Nat 2 at << l | Nat >> @ T
