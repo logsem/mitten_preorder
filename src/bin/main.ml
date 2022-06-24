@@ -19,9 +19,9 @@ let input_file =
 
 let info =
   let doc = "Typecheck and normalize terms in MTT" in
-  let err_exit = Term.exit_info ~doc:"on an ill-formed or terms." 1 in
-  Term.info "mitten" ~version:"0.0" ~doc ~exits:(err_exit :: Term.default_exits)
+  let err_exit = Cmd.Exit.info ~doc:"on an ill-formed or terms." 1 in
+  Cmd.info "mitten" ~version:"0.0" ~doc ~exits:(err_exit :: Cmd.Exit.defaults)
 
 let () =
   let t = Term.(const main $ input_file) in
-  Term.exit_status @@ Term.eval (t, info)
+  exit @@ Cmd.eval' @@ Cmd.v info t
