@@ -104,7 +104,7 @@ let check_mod nu mu errorspec =
 let check_cell mu nu =
   if leq mu nu
   then ()
-  else tp_error (Misc ("Cannot finde 2-cell" ^ mod_pp mu ^ "-->" ^ mod_pp nu))
+  else tp_error (Misc ("Cannot derive that" ^ mod_pp mu ^ "<=" ^ mod_pp nu))
 
 let rec check ~env ~size ~term ~tp ~m =
   match term with
