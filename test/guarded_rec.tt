@@ -8,15 +8,14 @@
 ;; dg_id: d o g -> id
 ;; box := d o g
 
-;; Here a small test that should not work, remove the mode check for variables in "synth" and it will go through
-;; axiom test : Nat @ T
-
-;; let bad : Nat @ S =
-;;    test
 
 ;;-------------- EQUALITY AXIOM and LEMMA ---------------------
 
-axiom inv_eq1 : (A : U<0>) -> (B : U<0>) -> (Id U<0> A B) -> Id U<0> B A @ T
+let inv_eq1 : (A : U<0>) -> (B : U<0>) -> (Id U<0> A B) -> Id U<0> B A @ T =
+    fun A B eq ->
+    match eq at x y q -> (Id U<0> y x) with
+    | refl x -> refl x
+
 
 let transport1 : (A : U<0>) -> (B : U<0>) -> (Id U<0> A B) -> A -> B @ T =
     fun A B eq ->
@@ -65,25 +64,16 @@ axiom lob1_beta :
 ;; -------------- Guarded Streams -----------------------
 
 let gstream : (A : U<0>) -> U<0> @ T =
-    fun A -> lob1 (fun s ->  A * << l | s >>)
+    fun A -> lob1 (fun x ->  A * << l | x >>)
 
 let gstream_fun : (A : U<0>) -> {l | U<0>} -> U<0> @ T =
    fun A s ->  A * << l | s >>
 
-let unfold : (A : U<0>) -> (gstream A) ->
-    (letmod idm (fun z -> U<0>) mod l (x) <- next1 (gstream A) in
-     (gstream_fun A) {l, x}) @ T =
-    fun A str ->
-        transport1
-            (gstream A)
-            (letmod idm (fun z -> U<0>) mod l (x) <- next1 (gstream A)
-             in (gstream_fun A) {l, x})
-            (lob1_beta (gstream_fun A))
-            str
+;; ------- Note that
+;;                      letmod idm (fun z -> U<0>) mod l (x) <- next1 (gstream A) in (gstream_fun A) {l, x}
+;;             -------> A * << l | gstream A >>
 
-;; ------- Unfold a bit more readible, but it is the same definition -------
-
-let alt_unfold : (A : U<0>) -> (gstream A) -> A * << l | gstream A >>
+let unfold : (A : U<0>) -> (gstream A) -> A * << l | gstream A >>
      @ T =
     fun A str ->
         transport1
@@ -92,17 +82,14 @@ let alt_unfold : (A : U<0>) -> (gstream A) -> A * << l | gstream A >>
             (lob1_beta (gstream_fun A))
             str
 
-let fold : (A : U<0>) ->
-    (letmod idm (fun z -> U<0>) mod l (x) <- next1 (gstream A)
-     in (gstream_fun A) {l, x})
-    -> gstream A @ T =
+let fold : (A : U<0>) -> (A * << l | gstream A >>) -> gstream A @ T =
     fun A str ->
         transport1
-            (letmod idm (fun z -> U<0>) mod l (x) <- next1 (gstream A) in (gstream_fun A) {l, x})
+            (A * << l | gstream A >>)
             (gstream A)
             (inv_eq1
                 (gstream A)
-                (letmod idm (fun z -> U<0>) mod l (x) <- next1 (gstream A) in (gstream_fun A) {l, x})
+                (A * << l | gstream A >>)
                 (lob1_beta (gstream_fun A)))
             str
 
@@ -111,10 +98,63 @@ let fold : (A : U<0>) ->
 let ghead : (A : U<0>) -> (gstream A) -> A @ T =
     fun A lst -> fst (unfold A lst)
 
-let gcons : (A : U<0>) -> A -> (gstream A) -> gstream A @ T =
-    fun A head tail -> fold A (pair (head , next (gstream A) tail))
+let gtail : (A : U<0>) -> (gstream A) -> << l | gstream A >> @ T =
+    fun A str -> snd (unfold A str)
 
-;; ----------------------------- Streams --------------------------
+let gcons : (A : U<0>) -> A -> << l | gstream A >> -> gstream A @ T =
+    fun A head tail -> fold A (pair (head , tail))
+
+;; ------------- Now one could try to prove things like stream = gcons (ghead stream , gtail stream)
+;; ------------- Equational reasoning is however very difficult in a system without function extensionality
+
+;; ------------- Some MTT functions needed to work around the fact that << idm | A >> =/= A and -----------------
+;; -------------- << g | << d | A >> >> =/= << g . d | A >>  = << idm | A >> ------------------------
+
+let triv_S : (A : U<0>) -> << idm | A >> -> A @ S =
+    fun A x -> letmod idm (fun z -> A) mod idm (y) <- x in y
+
+let triv_T : (A : U<0>) -> << idm | A >> -> A @ T =
+    fun A x -> letmod idm (fun z -> A) mod idm (y) <- x in y
+
+let comp_g-d : (A : U<0>) -> << g | << d | A >> >> -> A @ S =
+    fun A x -> letmod idm (fun z -> A) mod g (y) <- x in
+               letmod g (fun z -> A) mod d (z) <- y in
+               triv_S A (mod (g . d) z)
+
+let comp_g-l : (A : { g | U<0>}) -> << g | << l | A >> >> -> << g | A >> @ S =
+    fun A x -> letmod idm (fun z -> << g | A >>) mod g (y) <- x in
+               letmod g (fun z -> << g | A >>) mod l (z) <- y in
+               mod (g . l) z
+
+;; ----------------------------- Streams Basics --------------------------
+;; ----------- Here I define head, tail and cons for streams -------------
 
 let stream : (A : U<0>) -> U<0> @ S =
-    fun A -> << g | gstream <<d | A>> >>
+    fun A -> << g | gstream << d | A >> >>
+
+
+
+let head : (A : U<0>) -> (stream A) -> A @ S =
+    fun A str -> letmod idm (fun z -> A) mod g (gstr) <- str in
+                 comp_g-d A (mod g (ghead (<< d | A >>) gstr))
+
+let tail : (A : U<0>) -> (stream A) -> stream A @ S =
+    fun A str -> letmod idm (fun z -> stream A) mod g (gstr) <- str in
+                 comp_g-l {g , (gstream << d | A >>)} (mod g (gtail (<< d | A >>) gstr))
+
+let cons : (A : U<0>) -> A -> (stream A) -> stream A @ S =
+    fun A a str -> letmod idm (fun z -> stream A) mod g (gstr) <- str in
+                   mod g (gcons << d | A >> (mod d a) (next (gstream << d | A >>) gstr))
+
+let nth : Nat -> (stream Nat) -> Nat @ S =
+    fun n ->
+    rec n at _ -> (stream Nat) -> Nat with
+    | zero -> (fun str -> head Nat str)
+    | suc _ , p -> (fun str -> p (tail Nat str))
+
+;; ----------------------------- Stream Examples --------------------------
+
+let zeros : stream Nat @ S =
+    mod g (lob (gstream << d | Nat >>) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr)))
+
+normalize (head Nat zeros) at Nat @ S
