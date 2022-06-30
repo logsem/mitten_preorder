@@ -153,6 +153,9 @@ let comp_g-l : (A : { g | U<0>}) -> << g | << l | A >> >> -> << g | A >> @ S =
 
 ;; ----------------------------- Streams Basics --------------------------
 ;; ----------- Here I define head, tail and cons for streams -------------
+;; ----------- Type of constant naturals at T ---------------------
+
+let NatD : U<0> @ T = << d | Nat >>
 
 let stream : (A : U<0>) -> U<0> @ S =
     fun A -> << g | gstream << d | A >> >>
@@ -176,12 +179,6 @@ let nth : Nat -> (stream Nat) -> Nat @ S =
     | zero -> (fun str -> head Nat str)
     | suc _ , p -> (fun str -> p (tail Nat str))
 
-;; ----------------------------- Stream Examples --------------------------
-
-let zeros : stream Nat @ S =
-    mod g (lob (gstream << d | Nat >>) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr)))
-
-normalize (head Nat zeros) at Nat @ S
 
 let map : (A : U<0>) -> (A -> A) -> (gstream A) -> gstream A @ T =
     fun A g -> lob ((gstream A) -> gstream A)
@@ -192,10 +189,31 @@ let map : (A : U<0>) -> (A -> A) -> (gstream A) -> gstream A @ T =
 ;; ---------------- observe that f : {l | gstream Nat -> gstream Nat} and gstr : gstream Nat ---------
 ;; ---------------- but the 2-cell 1<= l is elaborated, so actually the term is (f {gstr, 1<= l})
 
+;; ----------------------------- Stream Examples --------------------------
+;; --------------------- Stream constantly 0 ------------------------------
 
+let zeros : stream Nat @ S =
+    mod g (lob (gstream << d | Nat >>) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr)))
+
+normalize (head Nat zeros) at Nat @ S
+
+
+;; ---------------- Stream of all natural numbers ----------------------
 let nats : stream Nat @ S =
     mod g (lob (gstream << d | Nat >>)
           (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l (map (<< d | Nat >>)
-                             (fun x -> letmod idm (fun z -> << d | Nat >>) mod d (y) <- x in
-                                        mod d (suc y))
-                             gstr))))
+                                                                   (fun x -> letmod idm (fun z -> << d | Nat >>) mod d (y) <- x in mod d (suc y))
+                                                                   gstr))))
+
+;; ----------------- Stream toggling 0 and 1 --------------------------------
+let toggle : stream Nat @ S =
+    mod g (lob (gstream << d | Nat >>)
+          (fun gstr -> gcons (<< d | Nat >>)
+                             (mod d 1)
+                             (next (gstream (<< d | Nat >>)) (gcons (<< d | Nat >>) (mod d 0) (mod l gstr) ))))
+
+let interleave : (gstream NatD) -> (gstream NatD) -> gstream NatD @ T =
+    lob ((gstream NatD) -> (gstream NatD) -> gstream NatD)
+        (fun inleave -> (fun gstr1 gstr2 -> gcons NatD (ghead NatD gstr1)
+                                               (letmod idm (fun z -> << l | gstream NatD >>) mod l (lockedgstr1) <- (gtail NatD gstr1) in (mod l (inleave gstr2 lockedgstr1)))))
+
