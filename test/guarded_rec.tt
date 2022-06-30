@@ -212,8 +212,7 @@ let toggle : stream Nat @ S =
                              (mod d 1)
                              (next (gstream (<< d | Nat >>)) (gcons (<< d | Nat >>) (mod d 0) (mod l gstr) ))))
 
-let interleave : (gstream NatD) -> (gstream NatD) -> gstream NatD @ T =
+let interleave : (gstream NatD) -> {l | (gstream NatD)} -> gstream NatD @ T =
     lob ((gstream NatD) -> (gstream NatD) -> gstream NatD)
         (fun inleave -> (fun gstr1 gstr2 -> gcons NatD (ghead NatD gstr1)
                                                (letmod idm (fun z -> << l | gstream NatD >>) mod l (lockedgstr1) <- (gtail NatD gstr1) in (mod l (inleave gstr2 lockedgstr1)))))
-
