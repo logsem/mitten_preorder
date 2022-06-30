@@ -183,10 +183,10 @@ let zeros : stream Nat @ S =
 
 normalize (head Nat zeros) at Nat @ S
 
-let map : (Nat -> Nat) -> (gstream Nat) -> gstream Nat @ T =
-    fun g -> lob ((gstream Nat) -> gstream Nat)
+let map : (A : U<0>) -> (A -> A) -> (gstream A) -> gstream A @ T =
+    fun A g -> lob ((gstream A) -> gstream A)
             (fun f ->
-            fun gstr -> gcons Nat (g (ghead Nat gstr))
+            fun gstr -> gcons A (g (ghead A gstr))
                                   (mod l (f gstr)))
 
 ;; ---------------- observe that f : {l | gstream Nat -> gstream Nat} and gstr : gstream Nat ---------
@@ -195,4 +195,7 @@ let map : (Nat -> Nat) -> (gstream Nat) -> gstream Nat @ T =
 
 let nats : stream Nat @ S =
     mod g (lob (gstream << d | Nat >>)
-          (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l (map (fun x -> suc x) gstr))))
+          (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l (map (<< d | Nat >>)
+                             (fun x -> letmod idm (fun z -> << d | Nat >>) mod d (y) <- x in
+                                        mod d (suc y))
+                             gstr))))
