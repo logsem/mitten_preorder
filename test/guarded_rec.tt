@@ -8,6 +8,26 @@
 ;; dg_id: d o g -> id
 ;; box := d o g
 
+;; USAGE of LETMOD:
+;; let example : {mu | << nu | Nat >>} -> << rho | Nat >> @ M
+;; fun x0 -> letmod mu (fun z -> A(z)) mod nu (x1) <- x0 in (mod rho x1)
+
+;; EXPLANATION:
+;; 1. mu                  denotes the framing modality of the type we want to eliminate
+;; 2. (fun z -> A(z))     denotes the (potentially dependent) type we eliminate into. In this example A(z) = << rho | Nat >>
+;; 3. nu                  denotes the modality of the modal type
+;; 4. "mod nu (x1) <- x0" means that in the body of the letmod expression we may assume that x0 is of the form mod nu (x1)
+;;                        and thus we can use "x1 : {mu . nu | Nat}" instead
+;; 5. "mod rho x1"        is the body of the function. It silently requires that nu . mu <= rho in your mode theory. Otherwise,
+;;                        type checkin will fail with "cannot derive (mu . nu) <= rho"
+;; 6. @ M                 is the mode where the term is formed. It has to be the case that codomain(rho) = codomain(mu) = M
+
+
+;; AXIOMS
+;; We can axiomatize constants at any mode, for instance:
+;; axiom lob : (A : U<0>) -> ({l | A} -> A) -> A @ T
+;; These will break canonicity but type checking still works. Equational reasoning (working with identity types) becomes
+;; very difficult.
 
 ;;-------------- EQUALITY AXIOM and LEMMA ---------------------
 
@@ -47,6 +67,10 @@ let next1 : U<0> -> << l | U<0> >> @ T =
 let coe : (A : U<0>) -> A -> << l | A >> @ T =
     fun A x -> mod l x
 
+let l-apply : (A : {l | U<0>}) -> (B : {l | U<0>}) -> << l | A -> B >> -> << l | A >> -> << l | B >> @ T =
+    fun A B f a -> letmod idm (fun _ -> << l | B >>) mod l (g) <- f in
+                   letmod idm (fun _ -> << l | B >>) mod l (b) <- a in
+                   mod l (g b)
 ;; -------------------- AXIOMS for Guarded Rec -------------
 
 axiom lob : (A : U<0>) -> ({l | A} -> A) -> A @ T
@@ -104,6 +128,7 @@ let gtail : (A : U<0>) -> (gstream A) -> << l | gstream A >> @ T =
 let gcons : (A : U<0>) -> A -> << l | gstream A >> -> gstream A @ T =
     fun A head tail -> fold A (pair (head , tail))
 
+
 ;; ------------- Now one could try to prove things like stream = gcons (ghead stream , gtail stream)
 ;; ------------- Equational reasoning is however very difficult in a system without function extensionality
 
@@ -133,7 +158,6 @@ let stream : (A : U<0>) -> U<0> @ S =
     fun A -> << g | gstream << d | A >> >>
 
 
-
 let head : (A : U<0>) -> (stream A) -> A @ S =
     fun A str -> letmod idm (fun z -> A) mod g (gstr) <- str in
                  comp_g-d A (mod g (ghead (<< d | A >>) gstr))
@@ -158,3 +182,17 @@ let zeros : stream Nat @ S =
     mod g (lob (gstream << d | Nat >>) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr)))
 
 normalize (head Nat zeros) at Nat @ S
+
+let map : (Nat -> Nat) -> (gstream Nat) -> gstream Nat @ T =
+    fun g -> lob ((gstream Nat) -> gstream Nat)
+            (fun f ->
+            fun gstr -> gcons Nat (g (ghead Nat gstr))
+                                  (mod l (f gstr)))
+
+;; ---------------- observe that f : {l | gstream Nat -> gstream Nat} and gstr : gstream Nat ---------
+;; ---------------- but the 2-cell 1<= l is elaborated, so actually the term is (f {gstr, 1<= l})
+
+
+let nats : stream Nat @ S =
+    mod g (lob (gstream << d | Nat >>)
+          (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l (map (fun x -> suc x) gstr))))
