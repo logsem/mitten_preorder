@@ -206,11 +206,11 @@ let nats : stream Nat @ S =
                                                                    gstr))))
 
 ;; ----------------- Stream toggling 0 and 1 --------------------------------
-let toggle : stream Nat @ S =
-    mod g (lob (gstream << d | Nat >>)
-          (fun gstr -> gcons (<< d | Nat >>)
-                             (mod d 1)
-                             (next (gstream (<< d | Nat >>)) (gcons (<< d | Nat >>) (mod d 0) (mod l gstr) ))))
+let toggle : gstream NatD @ T =
+    lob (gstream NatD)
+        (fun gstr -> gcons NatD
+                           (mod d 1)
+                           (next (gstream NatD) (gcons NatD (mod d 0) (mod l gstr) )))
 
 ;; --------------- Very simple type family to define dependent types for tests
 let uhoh : U<0> -> Nat -> U<0> @ T =
@@ -221,16 +221,20 @@ let uhoh : U<0> -> Nat -> U<0> @ T =
 
 
 ;; let test1 : gstream NatD @ T =
-;;    lob (gstream Nat) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr))
+;;   lob (gstream Nat) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr))
 
-let lala : (Nat * Nat) -> (Nat * << d | Nat >>) @ T =
-   fun x -> x
+;; let lala : (Nat * Nat) -> (Nat * U<0>) @ T =
+;;   fun x -> x
 
 ;; let test2 : ((x : Nat) * (uhoh Nat x))  -> ((x : Nat) * (uhoh NatD x)) @ T =
 ;;    fun x -> x
 
 
-;; let interleave : (gstream (<< d | Nat >>)) -> {l | (gstream (<< d | Nat >>))} -> gstream (<< d | Nat >>) @ T =
-;;     lob ((gstream (<< d | Nat >>)) -> (gstream (<< d | Nat >>)) -> gstream (<< d | Nat >>) )
-;;         (fun inleave -> (fun gstr1 gstr2 -> gcons (<< d | Nat >>) (ghead (<< d | Nat >>) gstr1)
-;;                                                (letmod idm (fun z -> << l | gstream (<< d | Nat >>) >>) mod l (lockedgstr1) <- (gtail (<< d | Nat >>) gstr1) in (mod l (inleave gstr2 lockedgstr1)))))
+let interleave : (gstream NatD) -> { l | (gstream NatD) } -> gstream NatD @ T =
+    lob ((gstream NatD) -> { l | (gstream NatD) } -> gstream NatD )
+        (fun inleave -> (fun gstr1 gstr2 -> gcons NatD
+                                                  (ghead NatD gstr1)
+                                                  (letmod idm (fun z -> << l | gstream NatD >>) mod l (lockedgstr1) <- (gtail NatD gstr1) in (mod l (inleave gstr2 {l , lockedgstr1})))))
+
+let paperfold : gstream NatD @ T =
+    lob (gstream NatD) (fun gstr -> interleave toggle {l , gstr})
