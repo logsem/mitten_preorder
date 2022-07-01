@@ -118,9 +118,9 @@ and go_to_sexp_ne size env ?(verb = false) tm =
     else List.nth env i
   | Ap (mu, f, a) ->
     begin
-    match verb with
-    | true -> Sexp.List [Sexp.Atom "ap"; go_to_sexp_ne size env ~verb:true f; Sexp.Atom "{"; mod_to_sexp mu; go_to_sexp_nf size env ~verb:true a; Sexp.Atom "}"]
-    | false -> Sexp.List [Sexp.Atom "ap"; go_to_sexp_ne size env ~verb:false f; go_to_sexp_nf size env ~verb:false a]
+      match verb with
+      | true -> Sexp.List [Sexp.Atom "ap"; go_to_sexp_ne size env ~verb:true f; Sexp.Atom "{"; mod_to_sexp mu; go_to_sexp_nf size env ~verb:true a; Sexp.Atom "}"]
+      | false -> Sexp.List [Sexp.Atom "ap"; go_to_sexp_ne size env ~verb:false f; go_to_sexp_nf size env ~verb:false a]
     end
   | Fst p -> Sexp.List [Sexp.Atom "fst"; go_to_sexp_ne size env ~verb p]
   | Snd p -> Sexp.List [Sexp.Atom "snd"; go_to_sexp_ne size env ~verb p]
