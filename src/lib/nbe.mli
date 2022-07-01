@@ -7,6 +7,7 @@ val normalize : env:Syntax.env -> term:Syntax.t -> tp:Syntax.t -> Syntax.t
 val eval : Syntax.t -> Domain.env -> Domain.t
 
 val read_back_nf : int -> Domain.nf -> Syntax.t
+val read_back_tp : int -> Domain.t -> Syntax.t
 
 (* Check whether a semantic element is equal to another *)
 val check_nf : Mode_theory.mode -> int -> Domain.nf -> Domain.nf -> bool
