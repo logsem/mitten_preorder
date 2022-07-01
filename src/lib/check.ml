@@ -13,7 +13,7 @@ let add_term ~md ~term ~mu ~tp env = Term {term; mu; tp; md} :: env
 
 type error =
     Cannot_synth_term of Syn.t
-  | Type_mismatch of D.t * D.t
+  | Type_mismatch of D.t * D.t * Syn.t
   | Term_or_Type_mismatch of D.nf * D.nf
   | Expecting_universe of D.t
   | Misc of string
@@ -23,8 +23,8 @@ let dnf_pp v = Nbe.read_back_nf 0 v |> Syn.pp
 
 let pp_error = function
   | Cannot_synth_term t -> "Cannot synthesize the type of:\n" ^ Syn.pp t
-  | Type_mismatch (t1, t2) ->
-    "Conversion mistake: Cannot equate\n" ^ (d_pp t1) ^ "\nwith\n" ^ (d_pp t2)
+  | Type_mismatch (t1, t2, term) ->
+    "Conversion mistake: Type-checking the subterm\n"^ Syn.pp term ^ "\nfailed. Cannot equate synthesized type\n" ^ (d_pp t1) ^ "\nwith expected type\n" ^ (d_pp t2)
   | Term_or_Type_mismatch (t1, t2) ->
     "Equality Type: Cannot equate\n" ^ (dnf_pp t1) ^ "\nwith\n" ^ (dnf_pp t2)
   | Expecting_universe d -> "Expected some universe for type found\n" ^ d_pp d
@@ -63,10 +63,10 @@ let get_var env n = match nth_tm env n with
   | TopLevel {tp; term = _; md} -> (None, tp, md)
   | _ -> raise (Type_error (Misc "This case of get_var should not be reached"))
 
-let assert_subtype m size t1 t2 =
+let assert_subtype m size t1 t2 term =
   if Nbe.check_tp m ~subtype:true size t1 t2
   then ()
-  else tp_error (Type_mismatch (t1, t2))
+  else tp_error (Type_mismatch (t1, t2, term))
 
 let assert_equal m size t1 t2 tp =
   let nf1 = D.Normal {tp; term = t1} in
@@ -179,7 +179,7 @@ let rec check ~env ~size ~term ~tp ~m =
         assert_equal m size term right tp
       | t -> tp_error (Misc ("Expecting Id but found\n" ^ d_pp t))
     end
-  | term -> assert_subtype m size (synth ~env ~size ~term ~m) tp;
+  | term -> assert_subtype m size (synth ~env ~size ~term ~m) tp term;
 
 and synth ~env ~size ~term ~m =
   match term with
