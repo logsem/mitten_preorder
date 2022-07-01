@@ -60,72 +60,80 @@ let rec int_of_syn = function
     end
   | _ -> None
 
-let rec go_to_sexp size env = function
-  | Val ty ->
-    let if_value = function
+let rec go_to_sexp size env ?(verb = false) exp =
+  match exp with
+  | Val tm ->
+    begin
+      match tm with
       | Nat -> Sexp.Atom "Nat"
       | Zero -> Sexp.Atom "zero"
       | Suc t ->
         begin
           match int_of_syn t with
           | Some i -> Sexp.Atom (string_of_int (i + 1))
-          | None -> Sexp.List [Sexp.Atom "suc"; go_to_sexp size env (Val t)]
+          | None -> Sexp.List [Sexp.Atom "suc"; go_to_sexp size env ~verb (Val t)]
         end
       | Pi (mu, src, dest) ->
         Sexp.List
           [Sexp.Atom "Pi";
            mod_to_sexp mu;
-           go_to_sexp size env (Val src);
-           go_to_sexp_clos size env dest]
+           go_to_sexp size env ~verb (Val src);
+           go_to_sexp_clos size env ~verb dest]
       | Lam t ->
-        Sexp.List [Sexp.Atom "lam"; go_to_sexp_clos size env t]
+        Sexp.List [Sexp.Atom "lam"; go_to_sexp_clos size env ~verb t]
       | Sig (fst, snd) ->
         Sexp.List
           [Sexp.Atom "Sig";
-           go_to_sexp size env (Val fst);
-           go_to_sexp_clos size env snd]
+           go_to_sexp size env ~verb (Val fst);
+           go_to_sexp_clos size env ~verb snd]
       | Pair (t1, t2) ->
-        Sexp.List [Sexp.Atom "pair"; go_to_sexp size env (Val t1); go_to_sexp size env (Val t2)]
+        Sexp.List [Sexp.Atom "pair"; go_to_sexp size env ~verb (Val t1); go_to_sexp size env ~verb (Val t2)]
       | Tymod (mu, tp) ->
         Sexp.List
           [Sexp.Atom "<";
            mod_to_sexp mu;
            Sexp.Atom "|";
-           go_to_sexp size env (Val tp);
+           go_to_sexp size env ~verb (Val tp);
            Sexp.Atom ">"]
       | Mod (mu, tm) ->
-        Sexp.List [Sexp.Atom "mod"; mod_to_sexp mu; go_to_sexp size env (Val tm)]
-      | Id (ty, le, ri) -> Sexp.List [Sexp.Atom "Id"; go_to_sexp size env (Val ty); go_to_sexp size env (Val le); go_to_sexp size env (Val ri)]
-      | Refl tm -> Sexp.List [Sexp.Atom "Refl"; go_to_sexp size env (Val tm)]
+        Sexp.List [Sexp.Atom "mod"; mod_to_sexp mu; go_to_sexp size env ~verb (Val tm)]
+      | Id (ty, le, ri) -> Sexp.List [Sexp.Atom "Id"; go_to_sexp size env ~verb (Val ty); go_to_sexp size env ~verb (Val le); go_to_sexp size env ~verb (Val ri)]
+      | Refl tm -> Sexp.List [Sexp.Atom "Refl"; go_to_sexp size env ~verb (Val tm)]
       | Uni i -> Sexp.List [Sexp.Atom "U"; Sexp.Atom (string_of_int i)]
-      | Neutral {tp; term} -> Sexp.List [Sexp.Atom "up"; go_to_sexp size env (Val tp); go_to_sexp_ne size env term] in
-    if_value ty
+      | Neutral {tp; term} -> Sexp.List [Sexp.Atom "up"; go_to_sexp size env ~verb (Val tp); go_to_sexp_ne size env ~verb term]
+    end
   | M mu -> mod_to_sexp mu
-and go_to_sexp_clos size env = function
+and go_to_sexp_clos size env ?(verb = false) tm =
+  match tm with
   | Clos body ->
     let var = Sexp.Atom ("x" ^ string_of_int size) in
-    let new_env = var :: List.map (go_to_sexp size env) body.env |> List.rev in
+    let new_env = var :: List.map (go_to_sexp size env ~verb) body.env |> List.rev in
     Sexp.List [var; Sexp.Atom "->"; Syntax.to_sexp new_env body.term]
 
-and go_to_sexp_ne size env = function
+and go_to_sexp_ne size env ?(verb = false) tm =
+  match tm with
   | Var i ->
     if i >= size
     then Sexp.Atom ("x" ^ string_of_int i)
     else List.nth env i
-  | Ap (_, f, a) ->
-    Sexp.List [Sexp.Atom "ap"; go_to_sexp_ne size env f; go_to_sexp_nf size env a]
-  | Fst p -> Sexp.List [Sexp.Atom "fst"; go_to_sexp_ne size env p]
-  | Snd p -> Sexp.List [Sexp.Atom "snd"; go_to_sexp_ne size env p]
+  | Ap (mu, f, a) ->
+    begin
+    match verb with
+    | true -> Sexp.List [Sexp.Atom "ap"; go_to_sexp_ne size env ~verb:true f; Sexp.Atom "{"; mod_to_sexp mu; go_to_sexp_nf size env ~verb:true a; Sexp.Atom "}"]
+    | false -> Sexp.List [Sexp.Atom "ap"; go_to_sexp_ne size env ~verb:false f; go_to_sexp_nf size env ~verb:false a]
+    end
+  | Fst p -> Sexp.List [Sexp.Atom "fst"; go_to_sexp_ne size env ~verb p]
+  | Snd p -> Sexp.List [Sexp.Atom "snd"; go_to_sexp_ne size env ~verb p]
   | NRec (motive, zero, Clos2 suc, n) ->
     let suc_var1 = Sexp.Atom ("x" ^ string_of_int (size + 1)) in
     let suc_var2 = Sexp.Atom ("x" ^ string_of_int (size + 2)) in
-    let senv = suc_var2 :: suc_var1 :: List.map (go_to_sexp size env) suc.env |> List.rev in
+    let senv = suc_var2 :: suc_var1 :: List.map (go_to_sexp size env ~verb) suc.env |> List.rev in
     Sexp.List
       [Sexp.Atom "nrec";
-       go_to_sexp_clos size env motive;
-       go_to_sexp size env (Val zero);
+       go_to_sexp_clos size env ~verb motive;
+       go_to_sexp size env ~verb (Val zero);
        Sexp.List [suc_var1; suc_var2; Syntax.to_sexp senv suc.term];
-       go_to_sexp_ne size env n]
+       go_to_sexp_ne size env ~verb n]
   | Letmod (mu, nu, mot, deptm, _, ne) ->
     Sexp.List
       [Sexp.Atom "let";
@@ -133,38 +141,38 @@ and go_to_sexp_ne size env = function
        Sexp.Atom "mod";
        mod_to_sexp nu;
        Sexp.Atom "<--";
-       go_to_sexp_ne size env ne;
-       go_to_sexp_clos size env deptm;
-       go_to_sexp_clos size env mot
+       go_to_sexp_ne size env ~verb ne;
+       go_to_sexp_clos size env ~verb deptm;
+       go_to_sexp_clos size env ~verb mot
       ]
   | J (Clos3 mot, refltm, ty, le, ri, eq) ->
     let rivar = Sexp.Atom ("x" ^ string_of_int (size + 1)) in
     let levar = Sexp.Atom ("x" ^ string_of_int (size + 2)) in
     let prfvar = Sexp.Atom ("x" ^ string_of_int (size + 3)) in
-    let mot_senv = prfvar :: levar :: rivar :: List.map (go_to_sexp size env) mot.env |> List.rev in
+    let mot_senv = prfvar :: levar :: rivar :: List.map (go_to_sexp size env ~verb) mot.env |> List.rev in
     Sexp.List
       [Sexp.Atom "J";
        Sexp.List [rivar; levar; prfvar; Syntax.to_sexp mot_senv mot.term];
-       go_to_sexp_clos size env refltm;
-       go_to_sexp size env (Val ty);
-       go_to_sexp size env (Val le);
-       go_to_sexp size env (Val ri);
-       go_to_sexp_ne size env eq;
+       go_to_sexp_clos size env ~verb refltm;
+       go_to_sexp size env ~verb (Val ty);
+       go_to_sexp size env ~verb (Val le);
+       go_to_sexp size env ~verb (Val ri);
+       go_to_sexp_ne size env ~verb eq;
       ]
   | Axiom (str, _) -> Sexp.Atom str
 
-and go_to_sexp_nf size env (Normal {tp; term}) =
+and go_to_sexp_nf size env ?(verb = false) (Normal {tp; term}) =
   Sexp.List
     [Sexp.Atom "down";
-     go_to_sexp size env (Val tp);
-     go_to_sexp size env (Val term)]
+     go_to_sexp size env ~verb (Val tp);
+     go_to_sexp size env ~verb (Val term)]
 
-let to_sexp = go_to_sexp 0 []
-let to_sexp_nf = go_to_sexp_nf 0 []
-let to_sexp_ne = go_to_sexp_ne 0 []
+let to_sexp ?(verb = false) exp = go_to_sexp 0 [] ~verb exp
+let to_sexp_nf ?(verb = false) exp = go_to_sexp_nf 0 [] ~verb exp
+let to_sexp_ne ?(verb = false) exp = go_to_sexp_ne 0 [] ~verb exp
 
-let pp t = to_sexp (Val t) |> Sexp.to_string_hum
-let pp_nf t = to_sexp_nf t |> Sexp.to_string_hum
-let pp_ne t = to_sexp_ne t |> Sexp.to_string_hum
-let pp_clos size env clos = go_to_sexp_clos size env clos |> Sexp.to_string_hum
-let pp_env env = Sexp.List (List.map to_sexp env) |> Sexp.to_string_hum
+let pp ?(verb = false) t = to_sexp ~verb:verb (Val t) |> Sexp.to_string_hum
+let pp_nf ?(verb = false) t = to_sexp_nf ~verb t |> Sexp.to_string_hum
+let pp_ne ?(verb = false) t = to_sexp_ne ~verb t |> Sexp.to_string_hum
+let pp_clos ?(verb = false) size env clos = go_to_sexp_clos size env ~verb clos |> Sexp.to_string_hum
+let pp_env ?(verb = false) env = Sexp.List (List.map (to_sexp ~verb) env) |> Sexp.to_string_hum

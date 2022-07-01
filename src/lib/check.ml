@@ -39,12 +39,24 @@ let add_term ~md ~term ~mu ~tp env = Term {term; mu; tp; md} :: env
 type error =
     Cannot_synth_term of Syn.t
   | Type_mismatch of D.t * D.t
+  | Term_or_Type_mismatch of D.t * D.t
   | Expecting_universe of D.t
   | Misc of string
 
 let pp_error = function
   | Cannot_synth_term t -> "Cannot synthesize the type of:\n" ^ Syn.pp t
-  | Type_mismatch (t1, t2) -> "Cannot equate\n" ^ D.pp t1 ^ "\nwith\n" ^ D.pp t2
+  | Type_mismatch (t1, t2) ->
+    let (str_t1, str_t2) = if (String.equal (D.pp t1) (D.pp t2))
+                           then (D.pp ~verb:true t1, D.pp ~verb:true t2)
+                           else (D.pp t1, D.pp t2)
+    in
+    "Conversion mistake: Cannot equate\n" ^ str_t1 ^ "\nwith\n" ^ str_t2
+  | Term_or_Type_mismatch (t1, t2) ->
+    let (str_t1, str_t2) = if (String.equal (D.pp t1) (D.pp t2))
+                           then (D.pp ~verb:true t1, D.pp ~verb:true t2)
+                           else (D.pp t1, D.pp t2)
+    in
+    "Equality Type: Cannot equate\n" ^ str_t1 ^ "\nwith\n" ^ str_t2
   | Expecting_universe d -> "Expected some universe but found\n" ^ D.pp d
   | Misc s -> s
 
@@ -89,7 +101,7 @@ let assert_subtype m size t1 t2 =
 let assert_equal m size t1 t2 tp =
   if Nbe.check_nf m size (D.Normal {tp; term = t1}) (D.Normal {tp; term = t2})
   then ()
-  else tp_error (Type_mismatch (t1, t2))
+  else tp_error (Term_or_Type_mismatch (t1, t2))
 
 let check_mode m n =
   if eq_mode m n

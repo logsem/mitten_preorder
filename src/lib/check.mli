@@ -10,6 +10,7 @@ val env_to_sem_env : env -> Domain.env
 type error =
     Cannot_synth_term of Syntax.t
   | Type_mismatch of Domain.t * Domain.t
+  | Term_or_Type_mismatch of Domain.t * Domain.t
   | Expecting_universe of Domain.t
   | Misc of string
 
