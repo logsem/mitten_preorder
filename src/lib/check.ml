@@ -9,31 +9,6 @@ type env_entry =
   | M of m
 type env = env_entry list
 
-(**let rec env_to_sexp lst =
-  let helper entry =
-    match entry with
-    | Term {mu; tp} -> Sexp.List [Sexp.Atom "["; mod_to_sexp mu; D.to_sexp (D.Val tp); Sexp.Atom "]"]
-    | TopLevel {tp} -> Sexp.List [D.to_sexp (D.Val tp)]
-    | M mu -> mod_to_sexp mu
-  in
-  match lst with
-  | [] -> []
-  | entry :: tail -> helper entry :: env_to_sexp tail
-
-let rec term_env_to_sexp lst =
-  let helper entry =
-    match entry with
-    | Term {mu; term} -> Sexp.List [Sexp.Atom "["; mod_to_sexp mu; D.to_sexp (D.Val term); Sexp.Atom "]"]
-    | TopLevel {term} -> Sexp.List [D.to_sexp (D.Val term)]
-    | M mu -> mod_to_sexp mu
-  in
-  match lst with
-  | [] -> []
-  | entry :: tail -> helper entry :: term_env_to_sexp tail
-
-let env_pp lst = Sexp.List (env_to_sexp lst) |> Sexp.to_string_hum
-*)
-
 let add_term ~md ~term ~mu ~tp env = Term {term; mu; tp; md} :: env
 
 type error =
