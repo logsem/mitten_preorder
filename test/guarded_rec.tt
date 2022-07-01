@@ -219,12 +219,12 @@ let uhoh : U<0> -> Nat -> U<0> @ T =
     | zero -> A * Nat
     | suc _ , _ -> A * A
 
+
 ;; let test1 : gstream NatD @ T =
 ;;    lob (gstream Nat) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr))
 
-
-;; let lala : (Nat * Nat) -> (Nat * << d | Nat >>) @ T =
-;;    fun x -> x
+let lala : (Nat * Nat) -> (Nat * << d | Nat >>) @ T =
+   fun x -> x
 
 ;; let test2 : ((x : Nat) * (uhoh Nat x))  -> ((x : Nat) * (uhoh NatD x)) @ T =
 ;;    fun x -> x
