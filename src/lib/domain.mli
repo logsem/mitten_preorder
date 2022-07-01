@@ -1,5 +1,4 @@
 open Mode_theory
-open Sexplib
 
 type envhead =
   | Val of t
@@ -37,13 +36,3 @@ and nf =
 val env_val : env -> int -> t
 
 val mk_var : t -> int -> t
-
-val to_sexp : ?verb:bool -> envhead -> Sexplib.Sexp.t
-val to_sexp_nf : ?verb:bool -> nf -> Sexplib.Sexp.t
-val to_sexp_ne : ?verb:bool -> ne -> Sexplib.Sexp.t
-
-val pp : ?verb:bool -> t -> string
-val pp_nf : ?verb:bool -> nf -> string
-val pp_ne : ?verb:bool -> ne -> string
-val pp_clos : ?verb:bool -> int -> Sexp.t list -> clos -> string
-val pp_env : ?verb:bool -> envhead list -> string

@@ -65,17 +65,17 @@ and do_ap f a =
 
 and do_j mot refl eq =
   match eq with
-  | D.Refl t -> do_clos refl t
+  | D.Refl t -> Some (do_clos refl t)
   | D.Neutral {tp; term} ->
     begin
       match tp with
       | D.Id (tp, left, right) ->
-        D.Neutral
+        Some (D.Neutral
           { tp = do_clos3 mot left right eq;
-            term = D.J (mot, refl, tp, left, right, term) }
+            term = D.J (mot, refl, tp, left, right, term) })
       | _ -> raise (Nbe_failed "Not an Id in do_j")
     end
-  | p -> raise (Nbe_failed ("Not a refl or neutral in do_j \n Eqtm: " ^ D.pp p))
+  | _ -> None
 
 and do_mod nu tyclos clos tm =
   match tm with
@@ -115,7 +115,11 @@ and eval t (env : D.env) =
   | Syn.Refl t -> D.Refl (eval t env)
   | Syn.Id (tp, left, right) -> D.Id (eval tp env, eval left env, eval right env)
   | Syn.J (mot, refl, eq) ->
-    do_j (D.Clos3 {term = mot; env}) (D.Clos {term = refl; env}) (eval eq env)
+    begin
+    match do_j (D.Clos3 {term = mot; env}) (D.Clos {term = refl; env}) (eval eq env) with
+    | Some (v) -> v
+    | None -> raise (Nbe_failed ("Not a refl or neutral in do_j \n Eqtm: " ^ Syn.pp eq))
+    end
   | Syn.TyMod (mu, t) ->
     let new_env = D.M mu :: env in
     D.Tymod (mu, eval t new_env)
@@ -178,7 +182,7 @@ let rec read_back_nf size nf =
           )
         | D.Tymod (mu, tp) -> Syn.TyMod (mu, read_back_nf size (D.Normal {tp = D.Uni i; term = tp }))
         | D.Neutral {term = ne; _} -> read_back_ne size ne
-        | errtm -> raise (Nbe_failed ("element of universe expected in read_back_nf\n False term: " ^ D.pp errtm))
+        | _ -> raise (Nbe_failed ("element of universe expected in read_back_nf\n False term: "))
       end
     | D.Neutral _ ->
       begin
