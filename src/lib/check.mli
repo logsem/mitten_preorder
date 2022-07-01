@@ -9,9 +9,12 @@ val env_to_sem_env : env -> Domain.env
 
 type error =
     Cannot_synth_term of Syntax.t
-  | Type_mismatch of Domain.t * Domain.t * Syntax.t
-  | Term_or_Type_mismatch of Domain.nf * Domain.nf
-  | Expecting_universe of Domain.t
+  | Type_mismatch of Syntax.t * Syntax.t * Syntax.t
+  | Term_or_Type_mismatch of Syntax.t * Syntax.t
+  | Expecting_universe of Syntax.t
+  | Modality_mismatch of m * m * Syntax.t * Syntax.t
+  | Mode_mismatch of mode * mode * Syntax.t
+  | Cell_fail of m * m * Syntax.t * Syntax.t
   | Misc of string
 
 val pp_error : error -> string

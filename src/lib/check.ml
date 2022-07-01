@@ -13,21 +13,27 @@ let add_term ~md ~term ~mu ~tp env = Term {term; mu; tp; md} :: env
 
 type error =
     Cannot_synth_term of Syn.t
-  | Type_mismatch of D.t * D.t * Syn.t
-  | Term_or_Type_mismatch of D.nf * D.nf
-  | Expecting_universe of D.t
+  | Type_mismatch of Syn.t * Syn.t * Syn.t
+  | Term_or_Type_mismatch of Syn.t * Syn.t
+  | Expecting_universe of Syn.t
+  | Modality_mismatch of m * m * Syn.t * Syn.t
+  | Mode_mismatch of mode * mode * Syn.t
+  | Cell_fail of m * m * Syn.t * Syn.t
   | Misc of string
 
-let d_pp v = Nbe.read_back_tp 0 v |> Syn.pp
-let dnf_pp v = Nbe.read_back_nf 0 v |> Syn.pp
+let d_pp size v = Nbe.read_back_tp size v |> Syn.pp
+let dnf_pp size v = Nbe.read_back_nf size v |> Syn.pp
 
 let pp_error = function
   | Cannot_synth_term t -> "Cannot synthesize the type of:\n" ^ Syn.pp t
   | Type_mismatch (t1, t2, term) ->
-    "Conversion mistake: Type-checking the subterm\n"^ Syn.pp term ^ "\nfailed. Cannot equate synthesized type\n" ^ (d_pp t1) ^ "\nwith expected type\n" ^ (d_pp t2)
+    "Conversion mistake: Type-checking the subterm\n"^ Syn.pp term ^ "\nfailed. Cannot equate synthesized type\n" ^ (Syn.pp t1) ^ "\nwith expected type\n" ^ (Syn.pp t2)
   | Term_or_Type_mismatch (t1, t2) ->
-    "Equality Type: Cannot equate\n" ^ (dnf_pp t1) ^ "\nwith\n" ^ (dnf_pp t2)
-  | Expecting_universe d -> "Expected some universe for type found\n" ^ d_pp d
+    "Equality Type: Cannot equate\n" ^ (Syn.pp t1) ^ "\nwith\n" ^ (Syn.pp t2)
+  | Expecting_universe d -> "Expected some universe for type found\n" ^ Syn.pp d
+  | Modality_mismatch (mu, nu, tm1, tm2) -> "The modalities " ^ mod_pp mu ^" and " ^ mod_pp nu ^ "\nin the terms\n" ^ Syn.pp tm1 ^ "\nand\n" ^ Syn.pp tm2 ^ "\ndo not match."
+  | Mode_mismatch (m, n, tm1) -> "The modes " ^ mode_pp m ^ " and " ^ mode_pp n ^ "\nin the derivation of the subterm\n" ^ Syn.pp tm1 ^ "\ndo not match."
+  | Cell_fail (mu, nu, tm, tp) -> "Cannot derive that" ^ mod_pp mu ^ "<=" ^ mod_pp nu ^ "\nand therefore\n" ^ Syn.pp tm ^"\ncannot access the type\n" ^ Syn.pp tp
   | Misc s -> s
 
 exception Type_error of error
@@ -66,29 +72,29 @@ let get_var env n = match nth_tm env n with
 let assert_subtype m size t1 t2 term =
   if Nbe.check_tp m ~subtype:true size t1 t2
   then ()
-  else tp_error (Type_mismatch (t1, t2, term))
+  else tp_error (Type_mismatch (Nbe.read_back_tp size t1, Nbe.read_back_tp size t2, term))
 
 let assert_equal m size t1 t2 tp =
   let nf1 = D.Normal {tp; term = t1} in
   let nf2 = D.Normal {tp; term = t2} in
   if Nbe.check_nf m size nf1 nf2
   then ()
-  else tp_error (Term_or_Type_mismatch (nf1, nf2))
+  else tp_error (Term_or_Type_mismatch (Nbe.read_back_nf size nf1, Nbe.read_back_nf size nf2))
 
-let check_mode m n =
-  if eq_mode m n
-  then ()
-  else tp_error (Misc ("Modes do not match " ^ mode_pp m ^ " /= " ^ mode_pp n))
+let check_mode m n tm =
+  match eq_mode m n with
+  | true -> ()
+  | false -> tp_error (Mode_mismatch(m, n, tm))
 
-let check_mod nu mu errorspec =
-  if eq_mod nu mu
-  then ()
-  else tp_error (Misc ("Modalities do not match\n" ^ mod_pp nu ^" and " ^ mod_pp mu ^ "\n" ^ errorspec))
+let check_mod mu nu tm tp =
+  match eq_mod mu nu with
+  | true -> ()
+  | false -> tp_error (Modality_mismatch (mu, nu, tm, tp))
 
-let check_cell mu nu =
-  if leq mu nu
-  then ()
-  else tp_error (Misc ("Cannot derive that" ^ mod_pp mu ^ "<=" ^ mod_pp nu))
+let check_cell mu nu tm tp =
+  match leq mu nu with
+  | true -> ()
+  | false -> tp_error (Cell_fail (mu, nu, tm, tp))
 
 let rec check ~env ~size ~term ~tp ~m =
   match term with
@@ -100,7 +106,7 @@ let rec check ~env ~size ~term ~tp ~m =
     begin
       match tp with
       | D.Uni _ -> ()
-      | p -> tp_error (Expecting_universe p)
+      | p -> tp_error (Expecting_universe (Nbe.read_back_tp size p))
     end
   | Syn.Sig (l, r) ->
     check ~env ~size ~term:l ~tp ~m;
@@ -108,7 +114,7 @@ let rec check ~env ~size ~term ~tp ~m =
     let var = D.mk_var l_sem size in
     check ~env:(add_term ~md:m ~term:var ~mu:idm ~tp:l_sem env) ~size ~term:r ~tp ~m
   | Syn.Pi (mu, l, r) ->
-    check_mode (cod_mod mu m) m;
+    check_mode (cod_mod mu m) m term;
     let new_env = M mu :: env in
     let new_mode = dom_mod mu m in
     check ~env:new_env ~size ~term:l ~tp ~m:new_mode;
@@ -123,7 +129,7 @@ let rec check ~env ~size ~term ~tp ~m =
         let var = D.mk_var src size in
         let dest_tp = Nbe.do_clos dest var in
         check ~env:(add_term ~md:new_mode ~term:var ~tp:src ~mu:mu env) ~size:(size + 1) ~term:f ~tp:dest_tp ~m ;
-      | t -> tp_error (Misc ("Expecting Pi but found\n" ^ d_pp t))
+      | t -> tp_error (Misc ("Expecting Pi but found\n" ^ d_pp size t))
     end
   | Syn.Pair (left, right) ->
     begin
@@ -132,7 +138,7 @@ let rec check ~env ~size ~term ~tp ~m =
         check ~env ~size ~term:left ~tp:left_tp ~m;
         let left_sem = Nbe.eval left (env_to_sem_env env) in
         check ~env ~size ~term:right ~tp:(Nbe.do_clos right_tp left_sem) ~m
-      | t -> tp_error (Misc ("Expecting Sig but found\n" ^ d_pp t))
+      | t -> tp_error (Misc ("Expecting Sig but found\n" ^ d_pp size t))
     end
   | Syn.Uni i ->
     begin
@@ -140,24 +146,28 @@ let rec check ~env ~size ~term ~tp ~m =
       | Uni j when i < j -> ()
       | t ->
         let msg =
-          "Expecting universe over " ^ string_of_int i ^ " but found\n" ^ d_pp t in
+          "Expecting universe over " ^ string_of_int i ^ " but found\n" ^ d_pp size t in
         tp_error (Misc msg)
     end
   | Syn.TyMod (mu, a) ->
-    check_mode (cod_mod mu m) m;
+    check_mode (cod_mod mu m) m term;
     let new_env = M mu :: env in
     let new_mode = dom_mod mu m in
     check ~env:new_env ~size ~term:a ~tp ~m:new_mode;
   | Syn.Mod (mu, tm) ->
-    check_mode (cod_mod mu m) m;
+    check_mode (cod_mod mu m) m term;
     begin
       match tp with
       | D.Tymod (nu, tp1) ->
-        check_mod mu nu "mod";
-        let new_env = M nu :: env in
-        let new_mode = dom_mod nu m in
-        check ~env:new_env ~size ~term:tm ~tp:tp1 ~m:new_mode;
-      | _ -> tp_error (Misc ("Expected Modal Type but found \n" ^ d_pp tp))
+        begin
+        match eq_mod mu nu with
+        | true ->
+          let new_env = M nu :: env in
+          let new_mode = dom_mod nu m in
+          check ~env:new_env ~size ~term:tm ~tp:tp1 ~m:new_mode;
+        | false -> tp_error (Modality_mismatch(mu, nu, (Syn.Mod (mu,tm)), Nbe.read_back_tp size tp))
+        end
+      | _ -> tp_error (Misc ("Expected Modal Type but found \n" ^ d_pp size tp))
     end
   | Id (tp', l, r) ->
     begin
@@ -167,7 +177,7 @@ let rec check ~env ~size ~term ~tp ~m =
         let tp' = Nbe.eval tp' (env_to_sem_env env) in
         check ~env ~size ~term:l ~tp:tp' ~m;
         check ~env ~size ~term:r ~tp:tp' ~m
-      | t -> tp_error (Expecting_universe t)
+      | t -> tp_error (Expecting_universe (Nbe.read_back_tp size t))
     end
   | Refl term ->
     begin
@@ -177,7 +187,7 @@ let rec check ~env ~size ~term ~tp ~m =
         let term = Nbe.eval term (env_to_sem_env env) in
         assert_equal m size term left tp;
         assert_equal m size term right tp
-      | t -> tp_error (Misc ("Expecting Id but found\n" ^ d_pp t))
+      | t -> tp_error (Misc ("Expecting Id but found\n" ^ d_pp size t))
     end
   | term -> assert_subtype m size (synth ~env ~size ~term ~m) tp term;
 
@@ -189,13 +199,13 @@ and synth ~env ~size ~term ~m =
     (*  Verify whether the toplevel definitions are used at the correct 0-cell,
         (we also check terms, but they should be fine anyways)
      *  It also validates that mu has the correct boundary, since we only allow entries where md is the domain of mu *)
-    check_mode md m;
+    check_mode md m term;
     begin
       match mu with
       | Some mu ->
         begin
           (* Verify whether a cell exists that allows us to access the variable*)
-          check_cell mu locks;
+          check_cell mu locks term (Nbe.read_back_tp size tp);
         end
       | None -> ()
     end;
@@ -214,7 +224,7 @@ and synth ~env ~size ~term ~m =
     begin
       match (synth ~env ~size ~term:p ~m) with
       | Sig (left_tp, _) -> left_tp
-      | t -> tp_error (Misc ("Expecting Sig but found\n" ^ d_pp t))
+      | t -> tp_error (Misc ("Expecting Sig but found\n" ^ d_pp size t))
     end
   | Syn.Snd p ->
     begin
@@ -222,20 +232,20 @@ and synth ~env ~size ~term ~m =
       | Sig (_, right_tp) ->
         let proj = Nbe.eval (Fst p) (env_to_sem_env env) in
         Nbe.do_clos right_tp proj
-      | t -> tp_error (Misc ("Expecting Sig but found\n" ^ d_pp t))
+      | t -> tp_error (Misc ("Expecting Sig but found\n" ^ d_pp size t))
     end
   | Syn.Ap (mu, f, a) ->
     begin
-      check_mode (cod_mod mu m) m;
+      check_mode (cod_mod mu m) m term;
       match (synth ~env ~size ~term:f ~m) with
       | D.Pi (nu , src , dest) ->
-        check_mod mu nu "ap";
+        check_mod mu nu term (Nbe.read_back_tp size (D.Pi (nu , src , dest)));
         let new_env = (M mu :: env) in
         let new_mode = dom_mod mu m in
         check ~env:new_env ~size ~term:a ~tp:src ~m:new_mode;
         let a_sem = Nbe.eval a (env_to_sem_env new_env) in
         Nbe.do_clos dest a_sem
-      | t -> tp_error (Misc ("Expecting Pi but found\n" ^ d_pp t))
+      | t -> tp_error (Misc ("Expecting Pi but found\n" ^ d_pp size t))
     end
   | Syn.NRec (mot, zero, suc, n) ->
     check ~env ~size ~term:n ~tp:Nat ~m;
@@ -258,12 +268,13 @@ and synth ~env ~size ~term ~m =
     begin
       let cod_mu = m in
       let dom_mu = dom_mod mu m in
-      check_mode cod_mu m;
+      check_mode cod_mu m term;
       let new_env = M mu :: env in
       let new_mode = dom_mu in
-      match (synth ~env:new_env ~size ~term:tm ~m:new_mode) with
+      let tp1 = synth ~env:new_env ~size ~term:tm ~m:new_mode in
+      match tp1 with
       | D.Tymod (nu1, tp) ->
-        check_mod nu nu1 "letmod";
+        check_mod nu nu1 tm (Nbe.read_back_tp size tp1) ;
         let new_head = Term {term = D.mk_var (D.Tymod (nu1, tp)) size; mu = mu; tp = D.Tymod (nu1, tp); md = new_mode} in
         let mot_env = new_head :: env in
         check_tp ~env:mot_env ~size:(size + 1) ~term:mot ~m;
@@ -274,7 +285,7 @@ and synth ~env ~size ~term ~m =
         check ~env:deptm_env ~size:(size + 1) ~term:deptm ~tp:sem_deptm_ty ~m;
         let final_tp_env = D.Val (Nbe.eval tm base_sem_env) :: base_sem_env in
         Nbe.eval mot final_tp_env
-      | t -> tp_error (Misc ("Expecting Modal Type but found \n" ^ d_pp t))
+      | _ -> tp_error (Misc ("Expecting Modal Type but found \n" ^ Syn.pp tm))
     end
   | Syn.J (mot, refl, eq) ->
     let eq_tp = synth ~env ~size ~term:eq ~m in
@@ -294,7 +305,7 @@ and synth ~env ~size ~term ~m =
         let refl_tp = Nbe.eval mot (D.Val (D.Refl refl_var) :: D.Val refl_var :: D.Val refl_var :: sem_env) in
         check ~env:(add_term ~md:m ~term:refl_var ~mu:idm ~tp:tp' env) ~size:(size + 1) ~term:refl ~tp:refl_tp ~m;
         Nbe.eval mot (D.Val (Nbe.eval eq sem_env) :: D.Val right :: D.Val left :: sem_env)
-      | t -> tp_error (Misc ("Expecting Id but found\n" ^ d_pp t))
+      | t -> tp_error (Misc ("Expecting Id but found\n" ^ d_pp size t))
     end
   | Syn.Axiom (_, tp) -> Nbe.eval tp (env_to_sem_env env)
   | _ -> tp_error (Cannot_synth_term term)
@@ -304,7 +315,7 @@ and check_tp ~env ~size ~term ~m =
   | Syn.Nat -> ()
   | Syn.Uni _ -> ()
   | Syn.Pi (mu, src, dest) ->
-    check_mode (cod_mod mu m) m;
+    check_mode (cod_mod mu m) m term;
     let new_env = M mu :: env in
     let new_mode = dom_mod mu m in
     check_tp ~env:new_env ~size ~term:src ~m:new_mode;
@@ -320,7 +331,7 @@ and check_tp ~env ~size ~term ~m =
     let def_val = Nbe.eval def (env_to_sem_env env) in
     check_tp ~env:(add_term ~md:m ~term:def_val ~mu:idm ~tp:def_tp env) ~size:(size + 1) ~term:body ~m
   | Syn.TyMod (mu, tp) ->
-    check_mode (cod_mod mu m) m;
+    check_mode (cod_mod mu m) m term;
     let new_env = M mu :: env in
     let new_mode = dom_mod mu m in
     check_tp ~env:new_env ~size ~term:tp ~m:new_mode;
@@ -333,5 +344,5 @@ and check_tp ~env ~size ~term ~m =
     begin
       match (synth ~env ~size ~term ~m) with
       | D.Uni _ -> ()
-      | t -> tp_error (Expecting_universe t)
+      | t -> tp_error (Expecting_universe (Nbe.read_back_tp size t))
     end
