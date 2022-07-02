@@ -8,6 +8,8 @@
 ;; dg_id: d o g -> id
 ;; box := d o g
 
+;; -------- Find some interesting evaluations at the bottom, uncomment to execute -------------
+
 ;; USAGE of LETMOD:
 ;; let example : {mu | << nu | Nat >>} -> << rho | Nat >> @ M
 ;; fun x0 -> letmod mu (fun z -> A(z)) mod nu (x1) <- x0 in (mod rho x1)
@@ -195,7 +197,6 @@ let map : (A : U<0>) -> (A -> A) -> (gstream A) -> gstream A @ T =
 let zeros : stream Nat @ S =
     mod g (lob (gstream << d | Nat >>) (fun gstr -> gcons (<< d | Nat >>) (mod d 0) (mod l gstr)))
 
-normalize (head Nat zeros) at Nat @ S
 
 
 ;; ---------------- Stream of all natural numbers ----------------------
@@ -217,7 +218,28 @@ let interleave : (gstream NatD) -> { l | (gstream NatD) } -> gstream NatD @ T =
     lob ((gstream NatD) -> { l | (gstream NatD) } -> gstream NatD )
         (fun inleave -> (fun gstr1 gstr2 -> gcons NatD
                                                   (ghead NatD gstr1)
-                                                  (letmod idm (fun z -> << l | gstream NatD >>) mod l (lockedgstr1) <- (gtail NatD gstr1) in (mod l (inleave gstr2 {l , lockedgstr1})))))
+                                                  (letmod idm (fun z -> << l | gstream NatD >>) mod l (open) <- (gtail NatD gstr1) in (mod l (inleave gstr2 {l , open})))))
 
 let paperfold : gstream NatD @ T =
     lob (gstream NatD) (fun gstr -> interleave toggle {l , gstr})
+
+;; ------------------ Coinductive streams, in particular acausal definitions that cannot be done only using later -------------------------------
+
+
+let every2nd : (A : {d | U<0>}) -> {d | stream A} -> (gstream << d | A >>) @ T =
+    fun A -> lob ({d | stream A} -> (gstream << d | A >>)) (fun f str -> gcons (<< d | A>>) (mod d (head A str)) (mod l (f {d , (tail A (tail A str))})))
+
+let every2nd_nat : (stream Nat) -> stream Nat @ S =
+    fun str -> mod g (every2nd {d, Nat} {d, str})
+
+let evens : stream Nat @ S = every2nd_nat nats
+
+
+;; --------------------NORMAL FORMS OF UNCANONICAL TERMS INTRODUCED BY LÖB ---------------------------------------
+;; -------------------- Note: We cannot compute löb if we want to have decidable type checking! ------------------
+
+;; -------------------- Theoretically: head Nat zeros = zero -------------------------------
+;; normalize (head Nat zeros) at Nat @ S
+
+;; ------------------- Uncomment if you want to see some truely horrible expression for the number 8 ---------------------
+;; normalize (nth 5 evens) at Nat @ S
