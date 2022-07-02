@@ -77,15 +77,15 @@ and do_j mot refl eq =
     end
   | _ -> None
 
-and do_mod nu tyclos clos tm =
-  match tm with
-  | D.Mod (_, tm1) -> do_clos clos tm1
+and do_mod nu tyclos body def =
+  match def with
+  | D.Mod (_, tm1) -> do_clos body tm1
   | D.Neutral {tp; term = e} ->
     begin
       match tp with
-      | D.Tymod (mu, tp1) ->
-        let tp2 = do_clos tyclos (D.Neutral {tp = D.Tymod (mu, tp1); term = e}) in
-        D.Neutral {tp = tp2; term = D.Letmod (mu, nu, tyclos, clos, tp1, e)}
+      | D.Tymod (mu, argtp) ->
+        let tp2 = do_clos tyclos (D.Neutral {tp = D.Tymod (mu, argtp); term = e}) in
+        D.Neutral {tp = tp2; term = D.Letmod (mu, nu, tyclos, body, argtp, e)}
       | _ -> raise (Nbe_failed "Not a TyMod in do_mod")
     end
   | _ -> raise (Nbe_failed "Not a Mod or Neutral in do_mod")
@@ -126,8 +126,8 @@ and eval t (env : D.env) =
   | Syn.Mod (mu, t) ->
     let new_env = D.M mu :: env in
     D.Mod (mu, eval t new_env)
-  | Syn.Letmod (_ ,nu ,tyfam , deptm , tm) ->
-    do_mod nu (D.Clos {term = tyfam; env = env}) (D.Clos {term = deptm; env = env}) (eval tm env)
+  | Syn.Letmod (_ ,nu ,tyfam , body , def) ->
+    do_mod nu (D.Clos {term = tyfam; env = env}) (D.Clos {term = body; env = env}) (eval def env)
   | Syn.Axiom (str, tp) -> D.Neutral {tp = eval tp env; term = D.Axiom (str, eval tp env)}
 
 (* Nested matching necessary. We cannot match just on nf, since we need to push tp before *)
@@ -255,7 +255,7 @@ and read_back_ne size ne =
   | D.Letmod (mu, nu, tyfam, clos, argtp, ne) ->
     let tp = do_clos tyfam (D.Tymod (mu, D.mk_var argtp size)) in
     let tm = D.Normal {tp = tp; term = do_clos clos (D.mk_var argtp size)} in
-    Syn.Letmod (mu, nu, read_back_tp (size + 1) tp, read_back_ne size ne, read_back_nf (size + 1) tm)
+    Syn.Letmod (mu, nu, read_back_tp (size + 1) tp, read_back_nf (size + 1) tm, read_back_ne size ne)
   | D.J (mot, refl, tp, _, _, eq) ->
     let mot_var1 = D.mk_var tp size in
     let mot_var2 = D.mk_var tp (size + 1) in
