@@ -167,7 +167,7 @@ let rec check ~env ~size ~term ~tp ~m =
           check ~env:new_env ~size ~term:tm ~tp:tp1 ~m:new_mode;
         | false -> tp_error (Modality_mismatch(mu, nu, (Syn.Mod (mu,tm)), Nbe.read_back_tp size tp))
         end
-      | _ -> tp_error (Misc ("Expected Modal Type but found \n" ^ d_pp size tp))
+      | _ -> tp_error (Misc ("A subterm requires a modal type with modality "^ mod_pp mu ^ " but found \n" ^ d_pp size tp))
     end
   | Id (tp', l, r) ->
     begin
@@ -285,7 +285,7 @@ and synth ~env ~size ~term ~m =
         check ~env:deptm_env ~size:(size + 1) ~term:deptm ~tp:sem_deptm_ty ~m;
         let final_tp_env = D.Val (Nbe.eval tm base_sem_env) :: base_sem_env in
         Nbe.eval mot final_tp_env
-      | _ -> tp_error (Misc ("Expecting Modal Type but found \n" ^ Syn.pp tm))
+      | _ -> tp_error (Misc ("Expecting Modal Type with"^ mod_pp nu ^ "but found \n" ^ d_pp size tp1))
     end
   | Syn.J (mot, refl, eq) ->
     let eq_tp = synth ~env ~size ~term:eq ~m in
