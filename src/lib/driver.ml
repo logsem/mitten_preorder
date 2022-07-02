@@ -87,8 +87,8 @@ let rec bind env = function
   | CS.Uni i -> S.Uni i
   | CS.TyMod (mu, tp) -> S.TyMod (M.bind_m mu, bind env tp)
   | CS.Mod (mu, tp) -> S.Mod (M.bind_m mu, bind env tp)
-  | CS.Letmod (mu, nu, Binder {name; body}, Binder {name = name1; body = body1}, tp) ->
-    S.Letmod (M.bind_m mu, M.bind_m nu, bind (name :: env) body, bind (name1 :: env) body1, bind env tp)
+  | CS.Letmod (mu, nu, Binder {name; body = tp}, Binder {name = mod_var; body}, def) ->
+    S.Letmod (M.bind_m mu, M.bind_m nu, bind (name :: env) tp, bind (mod_var :: env) body, bind env def)
 
 let process_decl (Env {size; check_env; bindings})  = function
   | CS.Def {name; def; tp; md} ->
