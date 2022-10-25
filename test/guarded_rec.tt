@@ -39,10 +39,47 @@ let inv_eq1 : (A : U<0>) -> (B : U<0>) -> (Id U<0> A B) -> Id U<0> B A @ T =
     | refl x -> refl x
 
 
+let ap : (A : U<0>) -> (B : U<0>) -> (f : A -> B) -> (g : A -> B) -> (p : Id (A -> B) f g) -> (a : A) -> Id B (f a) (g a) @ T =
+    fun A B f g eq a ->
+    match eq at x y p -> Id B (x a) (y a) with
+          | refl x -> refl (x a)
+
 let transport1 : (A : U<0>) -> (B : U<0>) -> (Id U<0> A B) -> A -> B @ T =
     fun A B eq ->
     match eq at x y p -> x -> y with
           | refl z -> fun x -> x
+
+let transport1_inv : (A : U<0>) -> (B : U<0>) -> (Id U<0> A B) -> B -> A @ T =
+    fun A B eq ->
+    match eq at x y p -> y -> x with
+          | refl z -> fun x -> x
+
+
+let trans_eq : (A : U<0>) -> (B : U<0>) -> (eq : Id U<0> A B) -> Id (A -> A) (fun a -> transport1_inv A B eq (transport1 A B eq a)) (fun a -> a) @ T =
+    fun A B eq ->
+    match eq at x y p -> Id (x -> x) (fun a -> transport1_inv x y p (transport1 x y p a)) (fun a -> a) with
+          | refl z -> refl (fun x -> x)
+
+let trans_eq_inv : (A : U<0>) -> (B : U<0>) -> (eq : Id U<0> A B) -> Id (B -> B) (fun b -> transport1 A B eq (transport1_inv A B eq b)) (fun b -> b) @ T =
+    fun A B eq ->
+    match eq at x y p -> Id (y -> y) (fun a -> transport1 x y p (transport1_inv x y p a)) (fun a -> a) with
+          | refl z -> refl (fun x -> x)
+
+let trans_eq1 : (A : U<0>) -> (B : U<0>) -> (eq : Id U<0> A B) -> (a : A) -> Id A (transport1_inv A B eq (transport1 A B eq a)) a @ T =
+    fun A B eq a -> ap A
+                       A
+                       (fun a -> transport1_inv A B eq (transport1 A B eq a))
+                       (fun a -> a)
+                       (trans_eq A B eq)
+                       a
+
+let trans_eq_inv1 : (A : U<0>) -> (B : U<0>) -> (eq : Id U<0> A B) -> (b : B) -> Id B (transport1 A B eq (transport1_inv A B eq b)) b @ T =
+    fun A B eq b -> ap B
+                       B
+                       (fun x -> transport1 A B eq (transport1_inv A B eq x))
+                       (fun x -> x)
+                       (trans_eq_inv A B eq)
+                       b
 
 ;; ------------------- Box is an idempotant comonad ------------------------
 let dup_inv : (A : {box . box | U<0>}) -> << box | << box | A >> >> -> << box | A >> @ T =
@@ -108,17 +145,30 @@ let unfold : (A : U<0>) -> (gstream A) -> A * << l | gstream A >>
             (lob1_beta (gstream_fun A))
             str
 
+;;let fold : (A : U<0>) -> (A * << l | gstream A >>) -> gstream A @ T =
+;;    fun A str ->
+;;        transport1
+;;            (A * << l | gstream A >>)
+;;            (gstream A)
+;;            (inv_eq1
+;;                (gstream A)
+;;                (A * << l | gstream A >>)
+;;                (lob1_beta (gstream_fun A)))
+;;            str
+
 let fold : (A : U<0>) -> (A * << l | gstream A >>) -> gstream A @ T =
     fun A str ->
-        transport1
-            (A * << l | gstream A >>)
+        transport1_inv
             (gstream A)
-            (inv_eq1
-                (gstream A)
-                (A * << l | gstream A >>)
-                (lob1_beta (gstream_fun A)))
+            (A * << l | gstream A >>)
+            (lob1_beta (gstream_fun A))
             str
 
+let fold_unfold : (A : U<0>) -> (s : gstream A) -> Id (gstream A) (fold A (unfold A s)) s @ T =
+    fun A s -> trans_eq1 (gstream A) (A * << l | gstream A >>) (lob1_beta (gstream_fun A)) s
+
+let unfold_fold : (A : U<0>) -> (p : A * << l | gstream A >>) -> Id (A * << l | gstream A >>) (unfold A (fold A p)) p @ T =
+    fun A p -> trans_eq_inv1 (gstream A) (A * << l | gstream A >>) (lob1_beta (gstream_fun A)) p
 ;; -------------
 
 let ghead : (A : U<0>) -> (gstream A) -> A @ T =
@@ -130,6 +180,12 @@ let gtail : (A : U<0>) -> (gstream A) -> << l | gstream A >> @ T =
 let gcons : (A : U<0>) -> A -> << l | gstream A >> -> gstream A @ T =
     fun A head tail -> fold A (pair (head , tail))
 
+
+;;let ghead_eq : (A : U<0>) -> (a : A) -> (s : << l | gstream A >>) -> Id A (ghead A (gcons A a s)) a @ T =
+;;    fun A head tail -> unfold_fold A (pair (head, tail))
+
+let gcons_eq : (A : U<0>) -> (s : gstream A) -> Id (gstream A) (gcons A (ghead A s) (gtail A s)) s @ T =
+    fun A s -> fold_unfold A s
 
 ;; ------------- Now one could try to prove things like stream = gcons (ghead stream , gtail stream)
 ;; ------------- Equational reasoning is however very difficult in a system without function extensionality
