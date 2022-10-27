@@ -98,7 +98,7 @@ let trans_eq_inv1 : (A : U<0>) -> (B : U<0>) -> (eq : Id U<0> A B) -> (b : B) ->
                        b
 
 ;; ------------------------ Crisp induction --------------------------------
-axiom crisp_g : (A : {g | U<0>}) -> (a : {g | A}) -> (b : {g | A}) -> << g | Id A a b >> -> Id (<< g | A >>) (mod g a) (mod g b) @ S
+axiom crisp_g : (A : {g | U<0>}) -> (a : {g | A}) -> (b : {g | A}) -> {g | Id A a b} -> Id (<< g | A >>) (mod g a) (mod g b) @ S
 
 ;; ------------------- Box is an idempotant comonad ------------------------
 let dup_inv : (A : {box . box | U<0>}) -> << box | << box | A >> >> -> << box | A >> @ T =
@@ -254,13 +254,50 @@ let cons : (A : U<0>) -> A -> (stream A) -> stream A @ S =
     fun A a str -> letmod idm (fun z -> stream A) mod g (gstr) <- str in
                    mod g (gcons << d | A >> (mod d a) (next (gstream << d | A >>) gstr))
 
-;;let ap : (A : U<0>) -> (B : U<0>) -> (f : A -> B) -> (a : A) -> (b : A) -> (Id A a b) -> Id B (f a) (f b) @ T =
-;;let ghead_eq : (A : U<0>) -> (a : A) -> (s : << l | gstream A >>) -> Id A (ghead A (gcons A a s)) a @ T =
+let stream_uni_helper : (A : {d | U<0>}) -> (S : {d | U<0>}) -> (f : {d | (S -> A * S)}) -> (<< d | S >>) -> gstream (<< d | A >>) @ T =
+    fun A S f -> lob ((<< d | S >>) -> gstream (<< d | A >>))
+                           (fun g s -> letmod idm (fun z -> gstream << d | A >>) mod d (t) <- s in
+                                              gcons (<< d | A >>)
+                                                    (mod d (fst (f t)))
+                                                    (mod l (g (mod d (snd (f t)))))
+                           )
+let stream_uni : (A : U<0>) -> (S : U<0>) -> (f : (S -> A * S)) -> S -> stream A @ S =
+    fun A S f s -> mod g (stream_uni_helper {d , A} {d , S} {d , f} (mod d s))
 
-;;let head_eq : (A : U<0>) -> (a : A) -> (s : stream A) -> Id A (head A (cons A a s)) a @ S =
-;;    fun A a str -> letmod idm (fun s -> Id A (head A (cons A a s)) a) mod g (gstr) <- str in
-;;                    ap (<< d | A >>) A (fun da -> comp_g-d A (mod g a)) (ghead A (gcons A (mod d a) (next (gstream << d | A >>) gstr))) (mod d a)
-;;                    (ghead_eq (<< d | A >>) (mod d a) (next (gstream << d | A >>) gstr))
+;; Not sure what is failing here...
+;;let cons_eq : (A : U<0>) -> (s : stream A) -> Id (stream A) (cons A (head A s) (tail A s)) s @ S =
+;;    fun A str -> letmod idm (fun s -> Id (stream A) (cons A (head A s) (tail A s)) s) mod g (gstr) <- str in
+;;                 crisp_g {g , gstream << d | A >>}
+;;                         {g , gcons << d | A >> (ghead << d | A >> gstr) (gtail << d | A >> gstr)}
+;;                         {g , gstr}
+;;                         {g , gcons_eq (<< d | A >>) (gstr)}
+
+
+
+let head_eq : (A : U<0>) -> (a : A) -> (s : stream A) -> Id A (head A (cons A a s)) a @ S =
+    fun A a str -> letmod idm (fun s -> Id A (head A (cons A a s)) a) mod g (gstr) <- str in
+                    ap (<< g | << d | A >> >>)
+                       A
+                       (comp_g-d A)
+                       (mod g (ghead (<< d | A >>) (gcons (<< d | A >>) (mod d a)(mod l gstr))))
+                       (mod g (mod d a))
+                       (crisp_g {g , << d | A >>}
+                                {g , ghead (<< d | A >>) (gcons (<< d | A >>) (mod d a) (mod l gstr))}
+                                {g , mod d a}
+                                {g , ghead_eq (<< d | A >>) (mod d a) (mod l gstr)})
+
+let tail_eq : (A : U<0>) -> (a : A) -> (s : stream A) -> Id (stream A) (tail A (cons A a s)) s @ S =
+    fun A a str -> letmod idm (fun s -> Id (stream A) (tail A (cons A a s)) s) mod g (gstr) <- str in
+                    ap (<< g | << l | (gstream << d | A >>) >> >>)
+                       (stream A)
+                       (comp_g-l {g, gstream << d | A >>})
+                       (mod g (gtail (<< d | A >>) (gcons (<< d | A >>) (mod d a)(mod l gstr))))
+                       (mod g (mod l gstr))
+                       (crisp_g {g , << l | gstream << d | A >> >>}
+                                {g , gtail (<< d | A >>) (gcons (<< d | A >>) (mod d a) (mod l gstr))}
+                                {g , mod l gstr}
+                                {g , gtail_eq (<< d | A >>) (mod d a) (mod l gstr)})
+
 
 let nth : Nat -> (stream Nat) -> Nat @ S =
     fun n ->
