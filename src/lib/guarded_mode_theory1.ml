@@ -98,6 +98,7 @@ let nf_leq mu nu =
   | Sem_L n , Sem_L m -> n <= m
   | LB n , LB m -> n <= m
   | LD n , LD m -> n <= m
+  | LB n , Sem_L m -> n <= m
   | Sem_G , Sem_G -> true
   | _ -> false
 
